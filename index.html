@@ -374,7 +374,67 @@ button{
     transform:translate(-50%,-70%) scale(1)
   }
 }
+.grow-complete{
+  position:fixed;
+  left:50%;
+  top:50%;
+  width:min(86vw,380px);
+  padding:28px 20px 25px;
+  transform:translate(-50%,-50%) scale(.55);
+  z-index:50;
+  background:rgba(255,250,243,.98);
+  border:2px solid var(--line);
+  border-radius:28px;
+  box-shadow:0 15px 50px rgba(60,50,40,.25);
+  text-align:center;
+  pointer-events:none;
+  opacity:0;
+}
 
+.grow-complete.show{
+  animation:growComplete 2s ease-out forwards
+}
+
+.complete-flower{
+  font-size:108px;
+  line-height:1;
+  margin-bottom:14px;
+  filter:drop-shadow(0 5px 5px rgba(60,80,45,.18));
+}
+
+.complete-text{
+  font-size:22px;
+  font-weight:800;
+  line-height:1.4
+}
+
+@keyframes growComplete{
+
+  0%{
+    opacity:0;
+    transform:translate(-50%,-50%) scale(.55)
+  }
+
+  16%{
+    opacity:1;
+    transform:translate(-50%,-50%) scale(1.12)
+  }
+
+  28%{
+    transform:translate(-50%,-50%) scale(1)
+  }
+
+  78%{
+    opacity:1;
+    transform:translate(-50%,-50%) scale(1)
+  }
+
+  100%{
+    opacity:0;
+    transform:translate(-50%,-50%) scale(.94)
+  }
+
+}
 .spark{
   position:fixed;
   z-index:29;
@@ -641,7 +701,17 @@ button{
 <div class="burst" id="burst">
   ぽんっ！✨
 </div>
+<div class="grow-complete" id="growComplete">
 
+  <div class="complete-flower" id="completeFlower">
+    🌷
+  </div>
+
+  <div class="complete-text" id="completeText">
+    チューリップに育ちました！
+  </div>
+
+</div>
 <div class="modal-back" id="modalBack">
 
   <div class="modal">
@@ -1298,7 +1368,36 @@ function water(){
 
 }
 
+function showGrowComplete(f){
 
+  const box =
+    document.getElementById(
+      "growComplete"
+    );
+
+  const flower =
+    document.getElementById(
+      "completeFlower"
+    );
+
+  const text =
+    document.getElementById(
+      "completeText"
+    );
+
+  flower.textContent=f.emoji;
+
+  text.textContent =
+    `${f.name}に育ちました！`;
+
+  box.classList.remove("show");
+
+  void box.offsetWidth;
+
+  box.classList.add("show");
+
+}
+  
 function showBurst(text){
 
   const b =
