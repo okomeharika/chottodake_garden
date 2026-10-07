@@ -1651,24 +1651,26 @@ function renderSnapshot(){
               100*h;
 
             ctx.font =
-              "64px sans-serif";
+  "64px 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif";
 
-            ctx.textAlign="center";
+ctx.textAlign="center";
 
-            ctx.fillText(
-              item.emoji,
-              x,
-              y
-            );
+ctx.textBaseline="middle";
 
-            ctx.font =
-              "28px sans-serif";
+ctx.fillText(
+  item.emoji,
+  x,
+  y
+);
 
-            ctx.fillText(
-              "🪴",
-              x,
-              y+50
-            );
+ctx.font =
+  "28px 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif";
+
+ctx.fillText(
+  "🪴",
+  x,
+  y+50
+);
 
           }
         );
