@@ -1288,76 +1288,74 @@ function water(){
   showBurst("ぽたっ 💧");
 
   if(
-    state.daily.progress>=f.water
-  ){
+  state.daily.progress>=f.water
+){
 
-    state.daily.progress=f.water;
-    state.daily.done=true;
+  state.daily.progress=f.water;
+  state.daily.done=true;
 
-    /*
-      咲いた花を庭へ追加
-    */
+  /*
+    咲いた花を庭へ追加
+  */
 
-    state.flowers.push({
+  state.flowers.push({
 
-      uid:
-        crypto.randomUUID?.() ||
-        String(Date.now()),
+    uid:
+      crypto.randomUUID?.() ||
+      String(Date.now()),
 
-      emoji:f.emoji,
-      name:f.name,
+    emoji:f.emoji,
+    name:f.name,
+    date:today(),
+    x:null,
+    y:null
+
+  });
+
+  save();
+  updateUI();
+
+  /*
+    花が育ちきった達成演出
+  */
+
+  showGrowComplete(f);
+  showBurst("ぽんっ！✨");
+  sparkle();
+
+  /*
+    ポップアップが終わってから
+    次の花を出す
+  */
+
+  setTimeout(()=>{
+
+    const nextFlower =
+      FLOWERS[
+        Math.floor(
+          Math.random()*
+          FLOWERS.length
+        )
+      ];
+
+    state.daily={
+
       date:today(),
-      x:null,
-      y:null
 
-    });
+      flowerId:
+        nextFlower.id,
+
+      progress:0,
+
+      done:false
+
+    };
 
     save();
     updateUI();
 
-    /*
-      開花エフェクトのあと、
-      次の花をすぐ出す
-    */
+  },2000);
 
-    setTimeout(()=>{
-
-      showBurst(
-        "ぽんっ！✨"
-      );
-
-      sparkle();
-
-      const nextFlower =
-        FLOWERS[
-          Math.floor(
-            Math.random()*
-            FLOWERS.length
-          )
-        ];
-
-      state.daily={
-
-        date:today(),
-
-        flowerId:
-          nextFlower.id,
-
-        progress:0,
-
-        done:false
-
-      };
-
-      save();
-
-      updateUI();
-
-      toast(
-        `${f.name}が咲きました 🌸`
-      );
-
-    },450);
 
   }else{
 
