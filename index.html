@@ -639,9 +639,94 @@ main{
   opacity:.6
 }
 
+
+/* 音楽ボタン & ダンス */
+.top-right{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:none
+}
+
+.music-btn{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:7px 11px;
+  box-shadow:var(--shadow);
+  font-size:18px;
+  line-height:1.3;
+  font-weight:700;
+  cursor:pointer;
+  transition:background .2s
+}
+
+.music-btn:active{
+  transform:scale(.94)
+}
+
+.music-btn.on{
+  background:#dff0d8;
+  border-color:#b9d9b0
+}
+
+.music-btn.on span{
+  display:inline-block;
+  animation:noteBounce .6s ease-in-out infinite
+}
+
+@keyframes noteBounce{
+  0%,100%{transform:translateY(0) rotate(-8deg)}
+  50%{transform:translateY(-3px) rotate(8deg)}
+}
+
+/* 花：中身の絵文字だけをシャカシャカ揺らす
+   （.flower 本体は translate で位置決めしているので触らない） */
+.flower .fl{
+  display:block;
+  transform-origin:50% 90%
+}
+
+.garden.dancing .flower .fl{
+  animation:flowerDance var(--dt,.32s) ease-in-out infinite alternate;
+  animation-delay:var(--dd,0s)
+}
+
+@keyframes flowerDance{
+  0%{transform:rotate(-13deg) translateY(0) scale(1,1)}
+  50%{transform:rotate(0deg) translateY(-7px) scale(1.08,.94)}
+  100%{transform:rotate(13deg) translateY(0) scale(1,1)}
+}
+
+/* 犬：その場でノリノリ */
+.dog-anim.dancing{
+  transform-origin:50% 100%;
+  animation:dogDance .6s ease-in-out infinite
+}
+
+@keyframes dogDance{
+  0%,100%{transform:translateY(0) rotate(-7deg)}
+  25%{transform:translateY(-12%) rotate(0deg) scale(.97,1.05)}
+  50%{transform:translateY(0) rotate(7deg)}
+  75%{transform:translateY(-12%) rotate(0deg) scale(.97,1.05)}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .garden.dancing .flower .fl{animation-duration:.8s}
+  .dog-anim.dancing{animation-duration:1.4s}
+}
+
 @media (max-width:380px){
   .title{
     font-size:20px
+  }
+
+  .top-right{
+    gap:6px
+  }
+
+  .music-btn{
+    padding:7px 9px
   }
 
   .flower{
@@ -661,7 +746,10 @@ main{
 
   <header class="top">
     <div class="title">🌿 ちょっとだけ庭</div>
-    <div class="water" id="waterLabel">💧 5 / 5</div>
+    <div class="top-right">
+      <button class="music-btn" id="musicBtn" aria-label="音楽を再生" aria-pressed="false"><span id="musicIcon">🎵</span></button>
+      <div class="water" id="waterLabel">💧 5 / 5</div>
+    </div>
   </header>
 
   <main>
@@ -1224,6 +1312,16 @@ function renderGarden(){
 
       el.dataset.id=item.uid;
 
+      /* ダンス用：花ごとにタイミングと速さをずらす */
+      el.style.setProperty(
+        "--dd",
+        (-(i*0.137)%0.5).toFixed(2)+"s"
+      );
+      el.style.setProperty(
+        "--dt",
+        (0.28+(i%3)*0.045).toFixed(3)+"s"
+      );
+
       el.style.zIndex =
         10+Math.round(
           item.y ?? getPosition(i)[1]
@@ -1240,7 +1338,7 @@ function renderGarden(){
         "%";
 
       el.innerHTML =
-        `<span>${item.emoji}</span>
+        `<span class="fl">${item.emoji}</span>
          <span class="pot">🪴</span>`;
 
       g.appendChild(el);
@@ -2037,6 +2135,7 @@ document
   let frame=0, frameT=0;
   let facingLeft=true;
   let last=performance.now();
+  let danceT=0;
 
   function pick(){
     tx=10+Math.random()*80;
@@ -2057,6 +2156,10 @@ document
     anim.classList.toggle(
       "walking",
       mode==="walk"
+    );
+    anim.classList.toggle(
+      "dancing",
+      mode==="dance"
     );
   }
 
@@ -2085,6 +2188,12 @@ document
   dog.addEventListener("pointerdown",e=>{
 
     e.stopPropagation();
+
+    /* 踊り中はそのまま踊り続けてハートだけ出す */
+    if(mode==="dance"){
+      hearts();
+      return;
+    }
 
     mode="happy";
     wait=1.6;
@@ -2147,6 +2256,20 @@ document
         wait-=dt;
         if(wait<=0) pick();
 
+      }else if(mode==="dance"){
+
+        /* その場でシャカシャカ：足を素早く入れ替え、向きも左右に */
+        frameT+=dt;
+        if(frameT>.16){
+          frameT=0;
+          frame^=1;
+        }
+        danceT+=dt;
+        if(danceT>.45){
+          danceT=0;
+          facingLeft=!facingLeft;
+        }
+
       }else if(mode==="happy"){
 
         wait-=dt;
@@ -2165,8 +2288,79 @@ document
 
   }
 
+  /* 外から呼ぶ：犬のダンスON/OFF */
+  window.setDogDance=function(on){
+    anim.classList.remove("jump");
+    if(on){
+      mode="dance";
+      frame=0;
+      frameT=0;
+      danceT=0;
+    }else{
+      mode="idle";
+      wait=.3;
+      frame=0;
+    }
+    apply();
+  };
+
   apply();
   requestAnimationFrame(tick);
+
+})();
+
+
+
+/* ===== 音楽 & ダンス ===== */
+(function(){
+
+  /* ★ 音楽ファイルのパスはここだけ書き換えればOK */
+  const MUSIC_SRC="assets/music.mp3";
+
+  const btn=document.getElementById("musicBtn");
+  const icon=document.getElementById("musicIcon");
+  const garden=document.getElementById("garden");
+
+  const audio=new Audio();
+  audio.loop=true;
+  audio.preload="none";
+  audio.volume=.7;
+
+  let playing=false;
+  let srcSet=false;
+
+  function setDance(on){
+    playing=on;
+    garden.classList.toggle("dancing",on);
+    btn.classList.toggle("on",on);
+    btn.setAttribute("aria-pressed",on?"true":"false");
+    btn.setAttribute("aria-label",on?"音楽を止める":"音楽を再生");
+    icon.textContent=on?"🎶":"🎵";
+    window.setDogDance&&window.setDogDance(on);
+  }
+
+  btn.addEventListener("click",async()=>{
+
+    if(playing){
+      audio.pause();
+      setDance(false);
+      return;
+    }
+
+    /* 先に踊り始める（音楽ファイルが無くても動きは確認できる） */
+    setDance(true);
+
+    try{
+      if(!srcSet){
+        audio.src=MUSIC_SRC;
+        srcSet=true;
+      }
+      await audio.play();
+    }catch(e){
+      toast("音楽ファイルが見つかりません 🎵（踊りだけ再生中）");
+    }
+
+  });
 
 })();
 
