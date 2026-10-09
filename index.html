@@ -340,6 +340,54 @@ main{
   margin:4px 0 12px
 }
 
+.friends-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  margin-bottom:22px
+}
+
+.friend-card{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:var(--shadow);
+  cursor:pointer;
+  text-align:center
+}
+
+.friend-card:active{
+  transform:scale(.97)
+}
+
+.friend-thumb{
+  aspect-ratio:1/1;
+  padding:10px;
+  display:grid;
+  place-items:center
+}
+
+.friend-thumb img{
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+  pointer-events:none;
+  user-select:none
+}
+
+.friend-name{
+  padding:0 6px 10px;
+  font-size:14px;
+  font-weight:700
+}
+
+.modal.friend img{
+  width:55%;
+  max-width:220px;
+  margin:4px auto 0
+}
+
 .album-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
@@ -839,6 +887,17 @@ main{
       <div class="panel" style="padding-top:0">
 
         <div class="section-title">
+          🐕 庭のお友達
+        </div>
+
+        <div class="friends-grid" id="friendsGrid"></div>
+
+        <div class="empty" id="friendsEmpty" style="padding:14px 12px 24px">
+          まだお友達はいません。<br>
+          花を咲かせると、誰か来るかも。
+        </div>
+
+        <div class="section-title">
           📖 庭のアルバム
         </div>
 
@@ -917,7 +976,7 @@ main{
 </div>
 <div class="modal-back" id="modalBack">
 
-  <div class="modal">
+  <div class="modal" id="modalBox">
 
     <div class="modal-head">
       <div class="album-date" id="modalDate"></div>
@@ -1272,6 +1331,7 @@ function updateUI(){
         "分。";
 
   renderGarden();
+  renderFriends();
   renderAlbum();
   renderCollection();
 
@@ -1938,6 +1998,104 @@ function renderSnapshot(){
 }
 
 
+/* ===== 庭のお友達 =====
+   新しい犬はここに足していく。
+   unlocked が true を返すと「庭のお友達」に表示される */
+const DOGS = [
+  {
+    id:"koro",
+    name:"コロちゃん",
+    image:"assets/dog_walk1.png",
+    intro:"シバ犬のコロちゃん。散歩とチーズが大好き。",
+    unlocked:()=>!!state.dogArrived
+  }
+];
+
+function renderFriends(){
+
+  const grid =
+    document.getElementById(
+      "friendsGrid"
+    );
+
+  const empty =
+    document.getElementById(
+      "friendsEmpty"
+    );
+
+  const list =
+    DOGS.filter(d=>d.unlocked());
+
+  grid.innerHTML="";
+
+  empty.style.display =
+    list.length
+      ? "none"
+      : "block";
+
+  list.forEach(
+    d=>{
+
+      const card =
+        document.createElement(
+          "div"
+        );
+
+      card.className=
+        "friend-card";
+
+      card.innerHTML=
+        `<div class="friend-thumb">
+           <img src="${d.image}"
+                alt="${d.name}"
+                draggable="false">
+         </div>
+         <div class="friend-name">
+           ${d.name}
+         </div>`;
+
+      card.addEventListener(
+        "click",
+        ()=>openFriend(d)
+      );
+
+      grid.appendChild(
+        card
+      );
+
+    }
+  );
+
+}
+
+function openFriend(d){
+
+  document.getElementById(
+    "modalBox"
+  ).classList.add("friend");
+
+  document.getElementById(
+    "modalDate"
+  ).textContent=d.name;
+
+  const img =
+    document.getElementById(
+      "modalImg"
+    );
+
+  img.src=d.image;
+  img.alt=d.name;
+
+  document.getElementById(
+    "modalNote"
+  ).textContent=d.intro;
+
+  document.getElementById(
+    "modalBack"
+  ).classList.add("open");
+
+}
+
 function renderAlbum(){
 
   const grid =
@@ -2008,6 +2166,10 @@ function renderAlbum(){
 
 
 function openAlbum(a){
+
+  document.getElementById(
+    "modalBox"
+  ).classList.remove("friend");
 
   document.getElementById(
     "modalDate"
@@ -2436,7 +2598,7 @@ document
       }
       await audio.play();
     }catch(e){
-      toast("再生中");
+      toast("無音声でダンス中！");
     }
 
   });
