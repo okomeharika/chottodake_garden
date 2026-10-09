@@ -144,6 +144,22 @@ button{
   filter:drop-shadow(0 3px 2px rgba(60,80,45,.2))
 }
 
+.dog.away{
+  display:none
+}
+
+.arrive-dog{
+  width:140px;
+  max-width:60%;
+  display:block;
+  margin:0 auto 12px;
+  filter:drop-shadow(0 5px 5px rgba(60,80,45,.18))
+}
+
+#dogArrive.show{
+  animation-duration:2.8s
+}
+
 .dog img{
   width:100%;
   display:block;
@@ -890,6 +906,15 @@ main{
   </div>
 
 </div>
+<div class="grow-complete" id="dogArrive">
+
+  <img class="arrive-dog" src="assets/dog_happy.png" alt="コロちゃん" draggable="false">
+
+  <div class="complete-text">
+    コロちゃんがやってきました！
+  </div>
+
+</div>
 <div class="modal-back" id="modalBack">
 
   <div class="modal">
@@ -1004,7 +1029,8 @@ const defaultState = () => ({
   daily:null,
   flowers:[],
   albums:[],
-  nextPos:0
+  nextPos:0,
+  dogArrived:false
 });
 
 let state = load();
@@ -1517,6 +1543,20 @@ function water(){
   sparkle();
 
   /*
+    最初の花が咲いたら、
+    達成ポップアップのあとにコロちゃん登場
+  */
+  if(!state.dogArrived){
+    state.dogArrived=true;
+    save();
+    setTimeout(()=>{
+      showDogArrive();
+      sparkle();
+      window.arriveDog&&window.arriveDog();
+    },2100);
+  }
+
+  /*
     ポップアップが終わってから
     次の花を出す
   */
@@ -1589,6 +1629,21 @@ function showGrowComplete(f){
 
 }
   
+function showDogArrive(){
+
+  const box =
+    document.getElementById(
+      "dogArrive"
+    );
+
+  box.classList.remove("show");
+
+  void box.offsetWidth;
+
+  box.classList.add("show");
+
+}
+
 function showBurst(text){
 
   const b =
@@ -2128,6 +2183,17 @@ document
   const HAPPY="assets/dog_happy.png";
   FRAMES.concat(HAPPY).forEach(src=>{ new Image().src=src; });
 
+  /* 最初の花が咲くまで犬は庭にいない。
+     すでに花がある既存データはそのまま登場済みにする */
+  if(!state.dogArrived){
+    if(state.flowers.length>0){
+      state.dogArrived=true;
+      save();
+    }else{
+      dog.classList.add("away");
+    }
+  }
+
   let x=30, y=70;        // 足元の位置（庭に対する%）
   let tx=x, ty=y;
   let mode="idle";       // idle / walk / happy
@@ -2287,6 +2353,19 @@ document
     requestAnimationFrame(tick);
 
   }
+
+  /* 外から呼ぶ：コロちゃん登場 */
+  window.arriveDog=function(){
+    dog.classList.remove("away");
+    mode="happy";
+    wait=1.8;
+    frame=0;
+    anim.classList.remove("jump");
+    void anim.offsetWidth;
+    anim.classList.add("jump");
+    apply();
+    hearts();
+  };
 
   /* 外から呼ぶ：犬のダンスON/OFF */
   window.setDogDance=function(on){
