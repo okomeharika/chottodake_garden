@@ -999,7 +999,7 @@ const FLOWERS = [
     id:"tulip",
     emoji:"🌷",
     name:"チューリップ",
-    water:5,
+    water:4,
     note:"今日は、ゆっくりひらいた。"
   },
 
@@ -1061,7 +1061,7 @@ const FLOWERS = [
 
   {
     id:"blossom",
-    emoji:"🌺",
+    emoji:"🏵️",
     name:"あざやかな花",
     water:5,
     note:"庭にひとつ、色が増えた。"
@@ -1089,7 +1089,8 @@ const defaultState = () => ({
   flowers:[],
   albums:[],
   nextPos:0,
-  dogArrived:false
+  dogArrived:false,
+  bag:null
 });
 
 let state = load();
@@ -1169,9 +1170,102 @@ function refillWater(){
 }
 
 
+/*
+  次に育てる花を選ぶ。
+
+  ・プレイ開始後の最初の花は必ずチューリップ
+  ・1周目だけ「くじ引き方式」：10種が全部1回ずつ出る
+  ・10種そろったあとは、完全ランダム
+*/
+function pickNextFlower(lastId){
+
+  const first = FLOWERS[0]; // チューリップ
+
+  if(state.flowers.length===0){
+
+    state.bag =
+      shuffle(
+        FLOWERS
+          .filter(f=>f.id!==first.id)
+          .map(f=>f.id)
+      );
+
+    return first;
+
+  }
+
+  /* くじ引き用データがない古いセーブは、ここから1周分だけ始める */
+  if(!Array.isArray(state.bag)){
+
+    state.bag =
+      shuffle(
+        FLOWERS.map(f=>f.id)
+      );
+
+  }
+
+  /* くじが残っている間（1周目）は、重ならずに出す */
+  if(state.bag.length){
+
+    const id = state.bag.pop();
+
+    return FLOWERS.find(
+      f=>f.id===id
+    ) || FLOWERS[0];
+
+  }
+
+  /* 1周終わったあとは完全ランダム */
+  return FLOWERS[
+    Math.floor(
+      Math.random()*FLOWERS.length
+    )
+  ];
+
+}
+
+function shuffle(arr){
+
+  const a=arr.slice();
+
+  for(let i=a.length-1;i>0;i--){
+
+    const j=Math.floor(
+      Math.random()*(i+1)
+    );
+
+    [a[i],a[j]]=[a[j],a[i]];
+
+  }
+
+  return a;
+
+}
+
 function ensureDaily(){
 
   const d=today();
+
+  /*
+    まだ1輪も咲かせていないのに、
+    チューリップ以外が植わっている古いデータは
+    最初の花をチューリップに直す
+  */
+  if(
+    state.daily &&
+    state.flowers.length===0 &&
+    state.daily.progress===0 &&
+    state.daily.flowerId!==FLOWERS[0].id
+  ){
+
+    pickNextFlower(null);
+
+    state.daily.flowerId=
+      FLOWERS[0].id;
+
+    save();
+
+  }
 
   /*
     今育てている花がなければ
@@ -1184,11 +1278,7 @@ function ensureDaily(){
   if(!state.daily){
 
     const flower =
-      FLOWERS[
-        Math.floor(
-          Math.random()*FLOWERS.length
-        )
-      ];
+      pickNextFlower(null);
 
     state.daily={
       date:d,
@@ -1624,12 +1714,9 @@ function water(){
   setTimeout(()=>{
 
     const nextFlower =
-      FLOWERS[
-        Math.floor(
-          Math.random()*
-          FLOWERS.length
-        )
-      ];
+      pickNextFlower(
+        f.id
+      );
 
     state.daily={
 
