@@ -2443,6 +2443,8 @@ document
     }
   }
 
+  const DOG_SIZE=96;     // 犬の大きさ(px)。変えたいときはここ
+
   let x=30, y=70;        // 足元の位置（庭に対する%）
   let tx=x, ty=y;
   let mode="idle";       // idle / walk / happy
@@ -2459,7 +2461,7 @@ document
   }
 
   function apply(){
-    const w=60+(y-35)/60*40;   // 奥は小さく、手前は大きく
+    const w=DOG_SIZE;          // 庭のどこにいても同じ大きさ
     dog.style.width=w+"px";
     dog.style.left=x+"%";
     dog.style.top=y+"%";
