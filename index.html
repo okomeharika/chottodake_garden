@@ -1621,10 +1621,40 @@ function dragFlower(el,item){
 }
 
 
+/* 開花の演出中は水やりを受け付けない（連打で花が増えるのを防ぐ） */
+let bloomLock=false;
+
 function water(){
+
+  if(bloomLock)return;
 
   refillWater();
   ensureDaily();
+
+  /*
+    開花の演出中にアプリを閉じた場合など、
+    咲き終わったままの状態が残っていたら、
+    花を増やさずに次の花へ進める
+  */
+  if(state.daily.done){
+
+    const next=
+      pickNextFlower(
+        state.daily.flowerId
+      );
+
+    state.daily={
+      date:today(),
+      flowerId:next.id,
+      progress:0,
+      done:false
+    };
+
+    save();
+    updateUI();
+    return;
+
+  }
 
   if(state.water<=0)return;
 
@@ -1662,6 +1692,7 @@ function water(){
 
   state.daily.progress=f.water;
   state.daily.done=true;
+  bloomLock=true;
 
   /*
     咲いた花を庭へ追加
@@ -1730,6 +1761,8 @@ function water(){
       done:false
 
     };
+
+    bloomLock=false;
 
     save();
     updateUI();
