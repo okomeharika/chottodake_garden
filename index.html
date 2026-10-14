@@ -2107,7 +2107,50 @@ function renderSnapshot(){
 
     items.sort((a,b)=>a.z-b.z);
 
-    const finish=()=>{
+    /* 左上の「わたしの庭」と日付（元の画像と同じ配置・比率） */
+    const HEADER_FONT='"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif';
+
+    const drawHeader=()=>{
+
+      const k=c.width/900;
+
+      const line=(text,size,weight,x,y,outline)=>{
+        ctx.font=`${weight} ${size*k}px ${HEADER_FONT}`;
+        /* 先に濃い緑のふちを描いてから白で塗る */
+        ctx.lineWidth=outline*k;
+        ctx.strokeStyle="rgba(35,75,45,.6)";
+        ctx.strokeText(text,x*k,y*k);
+        ctx.fillText(text,x*k,y*k);
+      };
+
+      ctx.save();
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.fillStyle="#fff";
+      ctx.lineJoin="round";
+      ctx.textAlign="left";
+      ctx.textBaseline="alphabetic";
+      ctx.shadowColor="rgba(0,0,0,.14)";
+      ctx.shadowBlur=5*k;
+      ctx.shadowOffsetY=1*k;
+
+      line("わたしの庭",44,800,45,70,7);
+      line(today(),28,700,45,108,5);
+
+      ctx.restore();
+
+    };
+
+    const finish=async()=>{
+
+      /* 丸ゴシックのWebフォントを読み込んでから文字を描く */
+      try{
+        await Promise.all([
+          document.fonts.load('800 44px "M PLUS Rounded 1c"',"わたしの庭"),
+          document.fonts.load('700 28px "M PLUS Rounded 1c"',"0123456789-")
+        ]);
+      }catch(e){}
+
+      drawHeader();
 
       items.forEach(it=>{
         ctx.save();
