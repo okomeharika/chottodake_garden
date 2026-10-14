@@ -404,7 +404,7 @@ main{
 }
 
 .album-thumb{
-  aspect-ratio:1/1;
+  aspect-ratio:3/4;
   background:#ddd center/cover no-repeat
 }
 
@@ -1118,10 +1118,21 @@ function load(){
 
 function save(){
 
-  localStorage.setItem(
-    STORAGE,
-    JSON.stringify(state)
-  );
+  try{
+
+    localStorage.setItem(
+      STORAGE,
+      JSON.stringify(state)
+    );
+
+    return true;
+
+  }catch(e){
+
+    /* 容量オーバーなどで保存できなかった */
+    return false;
+
+  }
 
 }
 
@@ -1939,17 +1950,40 @@ async function capture(){
   const img =
     await renderSnapshot();
 
+  if(!img){
+
+    toast(
+      "画像を作れませんでした"
+    );
+
+    return;
+
+  }
+
   const f=flower();
 
-  state.albums.unshift({
+  const entry={
 
     date:d,
     image:img,
     note:f.note
 
-  });
+  };
 
-  save();
+  state.albums.unshift(entry);
+
+  if(!save()){
+
+    /* 保存できなかったので追加を取り消す */
+    state.albums.shift();
+
+    toast(
+      "容量がいっぱいです"
+    );
+
+    return;
+
+  }
 
   updateUI();
 
@@ -1960,160 +1994,176 @@ async function capture(){
 }
 
 
+/* 画面に映っている庭（背景・花・犬）をそのまま1枚の画像にする。
+   位置・大きさ・向き・ダンス中の傾きも、その瞬間のDOMから読み取って再現する */
 function renderSnapshot(){
 
-  return new Promise(
-    resolve=>{
+  return new Promise(resolve=>{
 
-      const w=900;
-      const h=1200;
+    const garden=document.getElementById("garden");
+    const gr=garden.getBoundingClientRect();
 
-      const c =
-        document.createElement(
-          "canvas"
-        );
+    if(!gr.width||!gr.height){
+      resolve(null);
+      return;
+    }
 
-      const ctx=c.getContext(
-        "2d"
+    /* 画像サイズ：画面の2倍まで（保存容量を抑えるため幅720pxで頭打ち） */
+    const s=Math.min(
+      window.devicePixelRatio||1,
+      2,
+      720/gr.width
+    );
+
+    const c=document.createElement("canvas");
+    c.width=Math.round(gr.width*s);
+    c.height=Math.round(gr.height*s);
+    const ctx=c.getContext("2d");
+
+    /* 要素の中心（庭の左上基準）と、transformの回転・拡大縮小・反転だけを取り出す */
+    const centerOf=el=>{
+      const r=el.getBoundingClientRect();
+      return [
+        r.left-gr.left+r.width/2,
+        r.top-gr.top+r.height/2
+      ];
+    };
+    const linearOf=(...els)=>{
+      let m=new DOMMatrix();
+      els.forEach(el=>{
+        const t=getComputedStyle(el).transform;
+        if(t&&t!=="none") m=m.multiply(new DOMMatrix(t));
+      });
+      return m;
+    };
+    const place=(m,cx,cy)=>{
+      ctx.setTransform(
+        m.a*s,m.b*s,m.c*s,m.d*s,
+        cx*s,cy*s
+      );
+    };
+    const shadow=()=>{
+      ctx.shadowColor="rgba(60,80,45,.2)";
+      ctx.shadowBlur=4*s;
+      ctx.shadowOffsetY=3*s;
+    };
+    const noShadow=()=>{
+      ctx.shadowColor="transparent";
+      ctx.shadowBlur=0;
+      ctx.shadowOffsetY=0;
+    };
+
+    /* 前後関係（z-index）順に並べて描く */
+    const items=[];
+
+    garden.querySelectorAll(".flower").forEach(el=>{
+      const fl=el.querySelector(".fl");
+      const pot=el.querySelector(".pot");
+      if(!fl) return;
+      items.push({
+        z:parseInt(el.style.zIndex)||0,
+        draw(){
+          const draw1=(node,m)=>{
+            const cs=getComputedStyle(node);
+            const [cx,cy]=centerOf(node);
+            place(m,cx,cy);
+            ctx.font=`${cs.fontSize} ${cs.fontFamily}`;
+            ctx.textAlign="center";
+            ctx.textBaseline="middle";
+            ctx.fillText(node.textContent.trim(),0,0);
+          };
+          shadow();
+          if(pot) draw1(pot,new DOMMatrix());
+          draw1(fl,linearOf(fl));
+          noShadow();
+        }
+      });
+    });
+
+    const dog=document.getElementById("dog");
+    const dogImg=dog&&dog.querySelector("img");
+    if(
+      dog&&dogImg&&
+      dog.offsetWidth>0&&
+      !dog.classList.contains("away")&&
+      dogImg.complete&&dogImg.naturalWidth>0
+    ){
+      items.push({
+        z:parseInt(dog.style.zIndex)||0,
+        draw(){
+          const flip=dog.querySelector(".dog-flip");
+          const anim=dog.querySelector(".dog-anim");
+          const m=linearOf(flip,anim);
+          const [cx,cy]=centerOf(dogImg);
+          const w=dogImg.offsetWidth;
+          const h=dogImg.offsetHeight;
+          place(m,cx,cy);
+          shadow();
+          ctx.drawImage(dogImg,-w/2,-h/2,w,h);
+          noShadow();
+        }
+      });
+    }
+
+    items.sort((a,b)=>a.z-b.z);
+
+    const finish=()=>{
+
+      items.forEach(it=>{
+        ctx.save();
+        it.draw();
+        ctx.restore();
+      });
+
+      try{
+        resolve(c.toDataURL("image/jpeg",.7));
+      }catch(e){
+        /* file:// などで画像が読み込み制限されている場合 */
+        resolve(null);
+      }
+
+    };
+
+    const bg=new Image();
+
+    bg.onload=()=>{
+
+      /* CSSの「center top / cover」と同じ配置 */
+      const k=Math.max(
+        gr.width/bg.width,
+        gr.height/bg.height
+      );
+      const bw=bg.width*k;
+      const bh=bg.height*k;
+
+      ctx.drawImage(
+        bg,
+        (gr.width-bw)/2*s,
+        0,
+        bw*s,
+        bh*s
       );
 
-      c.width=w;
-      c.height=h;
+      /* 画面と同じ薄いグラデーション */
+      const g=ctx.createLinearGradient(0,0,0,c.height);
+      g.addColorStop(0,"rgba(255,255,255,.04)");
+      g.addColorStop(1,"rgba(255,255,255,.02)");
+      ctx.fillStyle=g;
+      ctx.fillRect(0,0,c.width,c.height);
 
-      const bg =
-        new Image();
+      finish();
 
-      bg.onload=()=>{
+    };
 
-        const scale =
-          Math.max(
-            w/bg.width,
-            h/bg.height
-          );
+    bg.onerror=()=>{
+      ctx.fillStyle="#5bbf55";
+      ctx.fillRect(0,0,c.width,c.height);
+      finish();
+    };
 
-        const bw =
-          bg.width*scale;
+    bg.src="assets/garden-sky-grass.jpg";
 
-        const bh =
-          bg.height*scale;
-
-        ctx.drawImage(
-          bg,
-          (w-bw)/2,
-          (h-bh)/2,
-          bw,
-          bh
-        );
-
-        ctx.fillStyle =
-          "rgba(0,0,0,.08)";
-
-        ctx.fillRect(
-          0,0,w,h
-        );
-
-        ctx.fillStyle =
-          "rgba(255,255,255,.9)";
-
-        ctx.font =
-          "500 42px sans-serif";
-
-        ctx.textAlign="left";
-
-        ctx.fillText(
-          "わたしの庭",
-          45,
-          70
-        );
-
-        ctx.font =
-          "28px sans-serif";
-
-        ctx.fillText(
-          today(),
-          45,
-          108
-        );
-
-        state.flowers.forEach(
-          (item,i)=>{
-
-            const x =
-              (item.x ??
-              getPosition(i)[0])/
-              100*w;
-
-            const y =
-              (item.y ??
-              getPosition(i)[1])/
-              100*h;
-
-            ctx.font =
-              "64px sans-serif";
-
-            ctx.textAlign="center";
-
-            ctx.fillText(
-              item.emoji,
-              x,
-              y
-            );
-
-            ctx.font =
-              "28px sans-serif";
-
-            ctx.fillText(
-              "🪴",
-              x,
-              y+50
-            );
-
-          }
-        );
-
-        resolve(
-          c.toDataURL(
-            "image/jpeg",
-            .82
-          )
-        );
-
-      };
-
-      bg.onerror=()=>{
-
-        ctx.fillStyle="#5bbf55";
-
-        ctx.fillRect(
-          0,0,w,h
-        );
-
-        ctx.fillStyle =
-          "rgba(255,255,255,.9)";
-
-        ctx.font =
-          "500 42px sans-serif";
-
-        ctx.fillText(
-          "わたしの庭",
-          45,
-          70
-        );
-
-        resolve(
-          c.toDataURL(
-            "image/jpeg",
-            .82
-          )
-        );
-
-      };
-
-      bg.src=
-        "assets/garden-sky-grass.jpg";
-
-    }
-  );
+  });
 
 }
 
